@@ -6,54 +6,27 @@
     <title>The Next Star - Live Control</title>
     <style>
         body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
+            margin: 0; padding: 0; width: 100%; height: 100%;
             background-color: #000510;
             background: radial-gradient(circle at center, #001a33 0%, #000510 100%);
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: none;
-            user-select: none;
+            overflow: hidden; display: flex; justify-content: center; align-items: center;
+            cursor: none; user-select: none;
         }
-
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
-        }
-
+        canvas { position: absolute; top: 0; left: 0; z-index: 1; }
         .arrow-container {
-            height: 75vh;
-            width: auto;
-            display: none;
+            height: 75vh; width: auto; display: none;
             filter: drop-shadow(0 0 50px currentColor);
-            z-index: 10;
-            position: relative;
+            z-index: 10; position: relative;
         }
-
         .blue-glow { color: #0099ff; }
         .red-glow { color: #ff0000; }
-
-        .visible {
-            display: block;
-            animation: fadeIn 0.15s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
-        }
+        .visible { display: block; animation: fadeIn 0.15s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
     </style>
 </head>
 <body>
-
     <canvas id="glitterCanvas"></canvas>
-
+    
     <svg style="width:0; height:0; position:absolute;">
         <defs>
             <linearGradient id="blueGradient" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -70,12 +43,12 @@
     <svg id="blueArrow" class="arrow-container blue-glow" viewBox="0 0 100 100">
         <path d="M50 2 L95 98 L50 75 L5 98 Z" fill="url(#blueGradient)" />
     </svg>
-
     <svg id="redArrow" class="arrow-container red-glow" viewBox="0 0 100 100">
         <path d="M5 2 L50 25 L95 2 L50 98 Z" fill="url(#redGradient)" />
     </svg>
 
     <script>
+        // --- מנוע הנצנצים השוחים ---
         const canvas = document.getElementById('glitterCanvas');
         const ctx = canvas.getContext('2d');
         let particles = [];
@@ -84,51 +57,47 @@
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
         }
-
         window.addEventListener('resize', resize);
         resize();
 
         class Particle {
-            constructor() {
-                this.init();
-            }
+            constructor() { this.init(); }
             init() {
                 this.x = Math.random() * canvas.width;
                 this.y = Math.random() * canvas.height;
-                this.size = Math.random() * 2 + 0.5;
-                this.speedX = (Math.random() - 0.5) * 0.5;
-                this.speedY = (Math.random() - 0.5) * 0.5;
+                this.size = Math.random() * 3 + 1;
+                this.vx = (Math.random() - 0.5) * 1.8; // מהירות שחייה מורגשת
+                this.vy = (Math.random() - 0.5) * 1.8;
                 this.opacity = Math.random();
-                this.fadeSpeed = Math.random() * 0.02 + 0.005;
                 this.color = ['#ffffff', '#ffd700', '#00aaff'][Math.floor(Math.random() * 3)];
             }
             update() {
-                this.x += this.speedX;
-                this.y += this.speedY;
-                this.opacity -= this.fadeSpeed;
-                if (this.opacity <= 0) this.init();
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = 0;
             }
             draw() {
+                ctx.globalAlpha = this.opacity;
+                ctx.fillStyle = this.color;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.globalAlpha = this.opacity;
                 ctx.fill();
             }
         }
 
-        for (let i = 0; i < 200; i++) particles.push(new Particle());
+        for (let i = 0; i < 150; i++) particles.push(new Particle());
 
-        function animate() {
+        function loop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            particles.forEach(p => {
-                p.update();
-                p.draw();
-            });
-            requestAnimationFrame(animate);
+            particles.forEach(p => { p.update(); p.draw(); });
+            requestAnimationFrame(loop);
         }
-        animate();
+        loop();
 
+        // --- לוגיקת החצים (כולל ביטול בלחיצה חוזרת) ---
         const blueArrow = document.getElementById('blueArrow');
         const redArrow = document.getElementById('redArrow');
 
@@ -137,16 +106,35 @@
             redArrow.classList.remove('visible');
         }
 
+        function toggleBlue() {
+            if (blueArrow.classList.contains('visible')) {
+                reset();
+            } else {
+                reset();
+                blueArrow.classList.add('visible');
+            }
+        }
+
+        function toggleRed() {
+            if (redArrow.classList.contains('visible')) {
+                reset();
+            } else {
+                reset();
+                redArrow.classList.add('visible');
+            }
+        }
+
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowUp') { reset(); blueArrow.classList.add('visible'); }
-            if (e.key === 'ArrowDown') { reset(); redArrow.classList.add('visible'); }
+            if (e.key === 'ArrowUp') toggleBlue();
+            if (e.key === 'ArrowDown') toggleRed();
             if (e.key === ' ') reset();
         });
 
         document.addEventListener('mousedown', (e) => {
-            if (e.button === 0) { reset(); blueArrow.classList.add('visible'); }
-            if (e.button === 2) { reset(); redArrow.classList.add('visible'); }
+            if (e.button === 0) toggleBlue(); // קליק שמאלי
+            if (e.button === 2) toggleRed();  // קליק ימני
         });
+
         document.oncontextmenu = (e) => e.preventDefault();
     </script>
 </body>
