@@ -11,7 +11,6 @@
             width: 100%;
             height: 100%;
             background-color: #000510;
-            /* רקע עמוק עם גרדיאנט שזז לאט */
             background: radial-gradient(circle at center, #001a33 0%, #000510 100%);
             overflow: hidden;
             display: flex;
@@ -21,35 +20,11 @@
             user-select: none;
         }
 
-        /* שכבת הנצנצים הדינמית */
-        .stars-container {
+        canvas {
             position: absolute;
-            width: 100%;
-            height: 100%;
+            top: 0;
+            left: 0;
             z-index: 1;
-        }
-
-        .star {
-            position: absolute;
-            background: white;
-            border-radius: 50%;
-            opacity: 0;
-            animation: twinkle var(--duration) infinite ease-in-out;
-        }
-
-        @keyframes twinkle {
-            0%, 100% { opacity: 0; transform: scale(0.5); }
-            50% { opacity: var(--max-opacity); transform: scale(1.2); }
-        }
-
-        /* שכבת "אבק כוכבים" למילוי העומק */
-        .glitter-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><circle cx="50" cy="50" r="0.5" fill="white" opacity="0.3"/><circle cx="150" cy="150" r="0.7" fill="%23ffd700" opacity="0.4"/></svg>');
-            background-size: 250px 250px;
-            z-index: 2;
-            opacity: 0.5;
         }
 
         .arrow-container {
@@ -75,10 +50,9 @@
         }
     </style>
 </head>
-<body oncontextmenu="return false;">
+<body>
 
-    <div class="glitter-overlay"></div>
-    <div id="stars" class="stars-container"></div>
+    <canvas id="glitterCanvas"></canvas>
 
     <svg style="width:0; height:0; position:absolute;">
         <defs>
@@ -102,34 +76,58 @@
     </svg>
 
     <script>
-        // יצירת 150 נצנצים במיקומים רנדומליים עם זמני אנימציה שונים
-        const starsContainer = document.getElementById('stars');
-        const colors = ['#ffffff', '#ffd700', '#00aaff', '#ffec8b'];
+        const canvas = document.getElementById('glitterCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
 
-        for (let i = 0; i < 150; i++) {
-            const star = document.createElement('div');
-            star.className = 'star';
-            
-            const size = Math.random() * 3 + 1;
-            const x = Math.random() * 100;
-            const y = Math.random() * 100;
-            const duration = Math.random() * 3 + 2;
-            const delay = Math.random() * 5;
-            const opacity = Math.random() * 0.7 + 0.3;
-            const color = colors[Math.floor(Math.random() * colors.length)];
-
-            star.style.width = `${size}px`;
-            star.style.height = `${size}px`;
-            star.style.left = `${x}%`;
-            star.style.top = `${y}%`;
-            star.style.backgroundColor = color;
-            star.style.boxShadow = `0 0 ${size * 2}px ${color}`;
-            star.style.setProperty('--duration', `${duration}s`);
-            star.style.setProperty('--max-opacity', opacity);
-            star.style.animationDelay = `${delay}s`;
-
-            starsContainer.appendChild(star);
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
         }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        class Particle {
+            constructor() {
+                this.init();
+            }
+            init() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2 + 0.5;
+                this.speedX = (Math.random() - 0.5) * 0.5;
+                this.speedY = (Math.random() - 0.5) * 0.5;
+                this.opacity = Math.random();
+                this.fadeSpeed = Math.random() * 0.02 + 0.005;
+                this.color = ['#ffffff', '#ffd700', '#00aaff'][Math.floor(Math.random() * 3)];
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.opacity -= this.fadeSpeed;
+                if (this.opacity <= 0) this.init();
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = this.opacity;
+                ctx.fill();
+            }
+        }
+
+        for (let i = 0; i < 200; i++) particles.push(new Particle());
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animate);
+        }
+        animate();
 
         const blueArrow = document.getElementById('blueArrow');
         const redArrow = document.getElementById('redArrow');
@@ -139,26 +137,17 @@
             redArrow.classList.remove('visible');
         }
 
-        function toggleBlue() {
-            if (blueArrow.classList.contains('visible')) reset();
-            else { reset(); blueArrow.classList.add('visible'); }
-        }
-
-        function toggleRed() {
-            if (redArrow.classList.contains('visible')) reset();
-            else { reset(); redArrow.classList.add('visible'); }
-        }
-
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowUp') toggleBlue();
-            if (e.key === 'ArrowDown') toggleRed();
-            if (e.key === ' ' || e.code === 'Space') reset();
+            if (e.key === 'ArrowUp') { reset(); blueArrow.classList.add('visible'); }
+            if (e.key === 'ArrowDown') { reset(); redArrow.classList.add('visible'); }
+            if (e.key === ' ') reset();
         });
 
         document.addEventListener('mousedown', (e) => {
-            if (e.button === 0) toggleBlue();
-            if (e.button === 2) toggleRed();
+            if (e.button === 0) { reset(); blueArrow.classList.add('visible'); }
+            if (e.button === 2) { reset(); redArrow.classList.add('visible'); }
         });
+        document.oncontextmenu = (e) => e.preventDefault();
     </script>
 </body>
 </html>
